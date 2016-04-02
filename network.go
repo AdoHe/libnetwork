@@ -875,8 +875,8 @@ func (n *network) getController() *controller {
 }
 
 func (n *network) ipamAllocate() error {
-	// For now also exclude bridge from using new ipam
-	if n.Type() == "host" || n.Type() == "null" {
+	// For now exclude host, null and ovs
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "ovs" {
 		return nil
 	}
 
@@ -993,8 +993,8 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 }
 
 func (n *network) ipamRelease() {
-	// For now exclude host and null
-	if n.Type() == "host" || n.Type() == "null" {
+	// For now exclude host, null and ovs
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "ovs" {
 		return
 	}
 	ipam, err := n.getController().getIpamDriver(n.ipamType)

@@ -1282,6 +1282,10 @@ func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{})
 	return nil
 }
 
+func (d *driver) ReleaseIP(id, ip string) error {
+	return nil
+}
+
 func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfiguration, error) {
 	if epOptions == nil {
 		return nil, nil

@@ -200,6 +200,56 @@ func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 	return ""
 }
 
+func (n *networkNamespace) BindVirtualIP(vip string) error {
+	n.Lock()
+	path := n.path
+	n.Unlock()
+
+	return nsInvoke(path, func(nsFD int) error {
+		// Do nothing before namespace switchs happen
+		return nil
+	}, func(callerFD int) error {
+		// Find the loopback interface
+		lo, err := netlink.LinkByName("lo")
+		if err != nil {
+			return fmt.Errorf("failed to get loopback device: %v", err)
+		}
+
+		// Down the interface before configuring
+		if err := netlink.LinkSetDown(lo); err != nil {
+			return fmt.Errorf("failed to set loopback device down: %v", err)
+		}
+
+		ip, ipn, err := net.ParseCIDR(vip)
+		if err != nil {
+			return fmt.Errorf("vip %s must in CIDR notation", vip)
+		}
+		addr := &netlink.Addr{
+			IPNet: &net.IPNet{
+				IP:   ip,
+				Mask: ipn.Mask,
+			},
+		}
+
+		// Add virtual ip to loopback device
+		err = netlink.AddrAdd(lo, addr)
+		if err != nil {
+			return fmt.Errorf("faild to bind virtual ip to loopback device: %v", err)
+		}
+
+		if err := configureArp(); err != nil {
+			return fmt.Errorf("failed to configure arp: %v", err)
+		}
+
+		// Up the interface
+		if err := netlink.LinkSetUp(lo); err != nil {
+			return fmt.Errorf("failed to set link up: %v", err)
+		}
+
+		return nil
+	})
+}
+
 func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...IfaceOption) error {
 	i := &nwIface{srcName: srcName, dstName: dstPrefix, ns: n}
 	i.processInterfaceOptions(options...)
@@ -284,6 +334,30 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	})
 }
 
+func configureArp() error {
+	if err := setupArpIgnore(); err != nil {
+		return err
+	}
+	if err := setupArpAnnounce(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setupArpIgnore() error {
+	if _, err := exec.Command("echo", "1", ">>", arpIgnoreFile).Output(); err != nil {
+		return fmt.Errorf("failed to setup arp_ignore: %v", err)
+	}
+	return nil
+}
+
+func setupArpAnnounce() error {
+	if _, err := exec.Command("echo", "2", ">>", arpAnnounceFile).Output(); err != nil {
+		return fmt.Errorf("failed to setup arp_announce: %v", err)
+	}
+	return nil
+}
+
 func configureInterface(iface netlink.Link, i *nwIface) error {
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
@@ -352,8 +426,10 @@ func setInterfaceRoutes(iface netlink.Link, i *nwIface) error {
 // we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
 // are naturally found in /proc/net/dev in kernels which support netns (ifconfig relies on that).
 const (
-	netStatsFile = "/proc/net/dev"
-	base         = "[ ]*%s:([ ]+[0-9]+){16}"
+	netStatsFile    = "/proc/net/dev"
+	base            = "[ ]*%s:([ ]+[0-9]+){16}"
+	arpIgnoreFile   = "/proc/sys/net/ipv4/conf/lo/arg_ignore"
+	arpAnnounceFile = "/proc/sys/net/ipv4/conf/lo/arg_announce"
 )
 
 func scanInterfaceStats(data, ifName string, i *types.InterfaceStatistics) error {

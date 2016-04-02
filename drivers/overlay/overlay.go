@@ -207,3 +207,7 @@ func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) er
 func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
+
+func (d *driver) ReleaseIP(id, ip string) error {
+	return nil
+}

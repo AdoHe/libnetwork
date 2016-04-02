@@ -105,6 +105,9 @@ type NetworkController interface {
 
 	// Stop network controller
 	Stop()
+
+	// Rlease IP Address when remove container(this method is used only be ovs driver)
+	ReleaseIPAddress(id, ip string) error
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -162,6 +165,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	if len(cfgOptions) > 0 {
 		cfg.ProcessOptions(cfgOptions...)
 	}
+	// Configure local scope
 	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
 
 	c := &controller{
@@ -173,6 +177,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		svcDb:       make(map[string]svcMap),
 	}
 
+	// Here we just use local store
 	if err := c.initStores(); err != nil {
 		return nil, err
 	}
@@ -325,8 +330,6 @@ func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error 
 	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS}
 	c.Unlock()
 
-	log.Debugf("Registering ipam provider: %s", name)
-
 	return nil
 }
 
@@ -477,6 +480,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
+	log.Infof("controler new sandbox for container: %s", containerID)
 
 	var sb *sandbox
 	c.Lock()
@@ -519,6 +523,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, err
 	}
 
+	// if container network mode is Host, we use default sandbox
 	if sb.config.useDefaultSandBox {
 		c.sboxOnce.Do(func() {
 			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
@@ -533,6 +538,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
+		sb.config.useDefaultSandBox = false
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
@@ -695,4 +701,9 @@ func (c *controller) Stop() {
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
+}
+
+func (c *controller) ReleaseIPAddress(id, ip string) error {
+	dd, _ := c.drivers["ovs"]
+	return dd.driver.ReleaseIP(id, ip)
 }

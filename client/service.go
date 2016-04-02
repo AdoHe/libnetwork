@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/Sirupsen/logrus"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
 )
@@ -318,6 +319,7 @@ func (cli *NetworkCli) CmdServiceInfo(chain string, args ...string) error {
 
 // CmdServiceAttach handles service attach UI
 func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
+	logrus.Infof("service attach start")
 	cmd := cli.Subcmd(chain, "attach", "CONTAINER SERVICE[.NETWORK]", "Sets a container as a service backend", false)
 	cmd.Require(flag.Min, 2)
 	err := cmd.ParseFlags(args, true)
@@ -325,24 +327,33 @@ func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 		return err
 	}
 
+	logrus.Infof("service attach cmd arg: %s", cmd.Arg(0))
+
 	containerID, err := lookupContainerID(cli, cmd.Arg(0))
 	if err != nil {
+		logrus.Debugf("loopup container id error")
 		return err
 	}
+	logrus.Infof("get container id: %s", containerID)
 
 	sandboxID, err := lookupSandboxID(cli, containerID)
 	if err != nil {
+		logrus.Debugf("loopup sandbox id error")
 		return err
 	}
+	logrus.Infof("get sandbox id: %s", sandboxID)
 
 	sn, nn := parseServiceName(cmd.Arg(1))
 	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
+		logrus.Debugf("loopup service id error")
 		return err
 	}
+	logrus.Infof("get service id: %s", serviceID)
 
 	nc := serviceAttach{SandboxID: sandboxID}
 
+	logrus.Infof("call serivce backend api")
 	_, _, err = readBody(cli.call("POST", "/services/"+serviceID+"/backend", nc, nil))
 
 	return err

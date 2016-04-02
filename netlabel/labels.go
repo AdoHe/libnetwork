@@ -27,6 +27,18 @@ const (
 	// ExposedPorts constant represents the container's Exposed Ports
 	ExposedPorts = Prefix + ".endpoint.exposedports"
 
+	// PublicIP constant represents the container's Public IP Address
+	PublicIP = Prefix + ".endpoint.publicip"
+
+	// NetworkName constant represents the network name which the container belonging
+	NetworkName = Prefix + ".endpoint.networkname"
+
+	// VlanTag constant represents the container's vlan id
+	VlanTag = Prefix + ".endpoint.vlantag"
+
+	// ContainerID constant represents the container's id
+	ContainerID = Prefix + ".endpoint.containerid"
+
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 

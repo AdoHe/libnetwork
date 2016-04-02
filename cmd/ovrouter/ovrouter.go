@@ -33,6 +33,14 @@ func (ep *endpoint) Interface() driverapi.InterfaceInfo {
 	return nil
 }
 
+func (ep *endpoint) SetNetworkName(networkName string) error {
+	return nil
+}
+
+func (ep *endpoint) SetVlanID(vlanID uint) error {
+	return nil
+}
+
 func (ep *endpoint) SetMacAddress(mac net.HardwareAddr) error {
 	if ep.mac != nil {
 		return types.ForbiddenErrorf("endpoint interface MAC address present (%s). Cannot be modified with %s.", ep.mac, mac)

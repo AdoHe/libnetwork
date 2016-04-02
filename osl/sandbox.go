@@ -58,6 +58,9 @@ type Sandbox interface {
 
 	// Destroy the sandbox
 	Destroy() error
+
+	// Bind virtual ip to loopback device
+	BindVirtualIP(vip string) error
 }
 
 // NeighborOptionSetter interfaces defines the option setter methods for interface options

@@ -29,6 +29,7 @@ import (
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	ovs "github.com/docker/libnetwork/drivers/ovs"
 	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -183,15 +184,12 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 
 	if nw != "" && d != "" {
 		// Bridge driver is special due to legacy reasons
-		if d == "bridge" {
-			genericOption[netlabel.GenericData] = map[string]string{
-				"BridgeName":    "docker0",
-				"DefaultBridge": "true",
-			}
-			createOptions = append(createOptions,
-				libnetwork.NetworkOptionGeneric(genericOption),
-				ipamOption(nw))
+		genericOption[netlabel.GenericData] = map[string]string{
+			ovs.BridgeName:    "docker0-ovs",
+			ovs.DefaultBridge: "true",
 		}
+		createOptions = append(createOptions,
+			libnetwork.NetworkOptionGeneric(genericOption))
 
 		if n, err := c.NetworkByName(nw); err == nil {
 			logrus.Debugf("Default network %s already present. Deleting it", nw)
@@ -227,13 +225,15 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	}
 
 	bridgeConfig := options.Generic{
-		"EnableIPForwarding": true,
-		"EnableIPTables":     true,
+		"EnableIPForwarding":   true,
+		"NetworkControllerUrl": "http://test.controller.com",
 	}
 
 	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
 
-	cOptions = append(cOptions, config.OptionDriverConfig("bridge", bridgeOption))
+	cOptions = append(cOptions, config.OptionDriverConfig("ovs", bridgeOption))
+	cOptions = append(cOptions, config.OptionDefaultNetwork("ovs"))
+	cOptions = append(cOptions, config.OptionDefaultDriver("ovs"))
 
 	controller, err := libnetwork.New(cOptions...)
 	if err != nil {
@@ -245,9 +245,9 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	httpHandler := api.NewHTTPHandler(controller)
 	r := mux.NewRouter().StrictSlash(false)
 	post := r.PathPrefix("/{.*}/networks").Subrouter()
-	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post.Methods("GET").HandlerFunc(httpHandler)
 	post = r.PathPrefix("/networks").Subrouter()
-	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post.Methods("GET").HandlerFunc(httpHandler)
 	post = r.PathPrefix("/{.*}/services").Subrouter()
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	post = r.PathPrefix("/services").Subrouter()
@@ -260,6 +260,7 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	handleSignals(controller)
 	setupDumpStackTrap()
 
+	logrus.Debugf("start accepting requests")
 	return http.ListenAndServe(d.addr, r)
 }
 

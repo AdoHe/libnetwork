@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/types"
 )
@@ -29,7 +30,7 @@ type EndpointInfo interface {
 	Sandbox() Sandbox
 }
 
-// InterfaceInfo provides an interface to retrieve interface addresses bound to the endpoint.
+// InterfaceInfo provides an interface to retrieve interface addresses and vlan tag bound to the endpoint.
 type InterfaceInfo interface {
 	// MacAddress returns the MAC address assigned to the endpoint.
 	MacAddress() net.HardwareAddr
@@ -39,6 +40,12 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address assigned to the endpoint.
 	AddressIPv6() *net.IPNet
+
+	// VlanID returns the vlan tag assigned to the endpoint.
+	VlanID() uint
+
+	// NetworkName returns the network name the endpoint belongs to.
+	NetworkName() string
 }
 
 type endpointInterface struct {
@@ -50,6 +57,9 @@ type endpointInterface struct {
 	routes    []*net.IPNet
 	v4PoolID  string
 	v6PoolID  string
+
+	vlanID      uint
+	networkName string
 }
 
 func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
@@ -72,6 +82,8 @@ func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	epMap["routes"] = routes
 	epMap["v4PoolID"] = epi.v4PoolID
 	epMap["v6PoolID"] = epi.v6PoolID
+	epMap["vlanID"] = epi.vlanID
+	epMap["networkName"] = epi.networkName
 	return json.Marshal(epMap)
 }
 
@@ -116,6 +128,9 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 	epi.v4PoolID = epMap["v4PoolID"].(string)
 	epi.v6PoolID = epMap["v6PoolID"].(string)
 
+	epi.vlanID = epMap["vlanID"].(uint)
+	epi.networkName = epMap["networkName"].(string)
+
 	return nil
 }
 
@@ -125,6 +140,8 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
 	dstEpi.srcName = epi.srcName
 	dstEpi.dstPrefix = epi.dstPrefix
+	dstEpi.vlanID = epi.vlanID
+	dstEpi.networkName = epi.networkName
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
 
@@ -142,6 +159,12 @@ type endpointJoinInfo struct {
 }
 
 func (ep *endpoint) Info() EndpointInfo {
+	log.Debugf("ep Info get called")
+	log.Debugf("ep info before get from store")
+	log.Debugf("ep info vlan id: %d", ep.iface.vlanID)
+	log.Debugf("ep info vlan id: %d", ep.iface.VlanID())
+	log.Debugf("ep info networ name: %s", ep.iface.NetworkName())
+	log.Debugf("ep info networ name: %s", ep.iface.networkName)
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return nil
@@ -159,7 +182,12 @@ func (ep *endpoint) Info() EndpointInfo {
 		return ep
 	}
 
-	return sb.getEndpoint(ep.ID())
+	ep = sb.getEndpoint(ep.ID())
+	log.Debugf("ep info vlan id: %d", ep.iface.vlanID)
+	log.Debugf("ep info vlan id: %d", ep.iface.VlanID())
+	log.Debugf("ep info networ name: %s", ep.iface.NetworkName())
+	log.Debugf("ep info networ name: %s", ep.iface.networkName)
+	return ep
 }
 
 func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
@@ -188,6 +216,8 @@ func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
 }
 
 func (ep *endpoint) Iface() InterfaceInfo {
+	log.Debugf("ep Iface get called")
+	log.Debugf("ep iface: %#v", ep.iface)
 	ep.Lock()
 	defer ep.Unlock()
 
@@ -248,6 +278,26 @@ func (epi *endpointInterface) Address() *net.IPNet {
 
 func (epi *endpointInterface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(epi.addrv6)
+}
+
+func (epi *endpointInterface) VlanID() uint {
+	return epi.vlanID
+}
+
+func (epi *endpointInterface) NetworkName() string {
+	return epi.networkName
+}
+
+func (epi *endpointInterface) SetVlanID(vlanID uint) error {
+	log.Debugf("set epi vlan id %d\n", vlanID)
+	epi.vlanID = vlanID
+	return nil
+}
+
+func (epi *endpointInterface) SetNetworkName(networkName string) error {
+	log.Debugf("set epi network name: %s\n", networkName)
+	epi.networkName = networkName
+	return nil
 }
 
 func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
@@ -608,6 +610,10 @@ func procPublishService(c libnetwork.NetworkController, vars map[string]string, 
 		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(sp.PortMapping))
 	}
 
+	// Pass Custom Create Endpoint Options
+	setFctList = append(setFctList, libnetwork.CreateOptionContainerID(stringid.GenerateNonCryptoID()))
+	setFctList = append(setFctList, libnetwork.CreateOptionNetworkName("default"))
+
 	ep, err := n.CreateEndpoint(sp.Name, setFctList...)
 	if err != nil {
 		return "", endpointToService(convertNetworkError(err))
@@ -639,6 +645,7 @@ func procAttachBackend(c libnetwork.NetworkController, vars map[string]string, b
 	epT, epBy := detectEndpointTarget(vars)
 	sv, errRsp := findService(c, epT, epBy)
 	if !errRsp.isOK() {
+		logrus.Infof("can not find service")
 		return nil, errRsp
 	}
 

@@ -32,8 +32,8 @@ var (
 	}
 
 	dnetCommands = []cli.Command{
-		createDockerCommand("network"),
 		createDockerCommand("service"),
+		createDockerCommand("network"),
 		{
 			Name:        "container",
 			Usage:       "Container management commands",
@@ -48,6 +48,7 @@ func runContainerCreate(c *cli.Context) {
 		os.Exit(1)
 	}
 
+	// Here we don't pass NetworkName, we use default NetworkName
 	sc := client.SandboxCreate{ContainerID: c.Args()[0]}
 	obj, _, err := readBody(epConn.httpCall("POST", "/sandboxes", sc, nil))
 	if err != nil {

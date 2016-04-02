@@ -97,10 +97,11 @@ func (sb *sandbox) needDefaultGW() bool {
 	var needGW bool
 
 	for _, ep := range sb.getConnectedEndpoints() {
+		fmt.Println("need default gw find endpoint")
 		if ep.endpointInGWNetwork() {
 			continue
 		}
-		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
+		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" || ep.getNetwork().Type() == "ovs" {
 			continue
 		}
 		// TODO v6 needs to be handled.
@@ -109,6 +110,7 @@ func (sb *sandbox) needDefaultGW() bool {
 		}
 		needGW = true
 	}
+	fmt.Printf("need gw %v\n", needGW)
 	return needGW
 }
 
