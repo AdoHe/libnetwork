@@ -105,6 +105,9 @@ type NetworkController interface {
 
 	// Stop network controller
 	Stop()
+
+	// Release IP Address when remove container(this method is used only when using ovs driver)
+	ReleaseIPAddress(id, ip string) error
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -519,6 +522,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, err
 	}
 
+	// if container network mode is Host, we use default sandbox
 	if sb.config.useDefaultSandBox {
 		c.sboxOnce.Do(func() {
 			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
@@ -695,4 +699,9 @@ func (c *controller) Stop() {
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
+}
+
+func (c *controller) ReleaseIPAddress(id, ip string) error {
+	dd, _ := c.drivers["ovs"]
+	return dd.driver.ReleaseIP(id, ip)
 }

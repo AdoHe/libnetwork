@@ -62,6 +62,7 @@ type endpoint struct {
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
 	dbExists      bool
+	vip           string // used for LVS DR
 	sync.Mutex
 }
 
@@ -72,6 +73,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
 	epMap["name"] = ep.name
 	epMap["id"] = ep.id
+	epMap["vip"] = ep.vip
 	epMap["ep_iface"] = ep.iface
 	epMap["exposed_ports"] = ep.exposedPorts
 	if ep.generic != nil {
@@ -92,6 +94,7 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 	ep.name = epMap["name"].(string)
 	ep.id = epMap["id"].(string)
+	ep.vip = apMap["vip"].(string)
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
 	json.Unmarshal(ib, &ep.iface)
@@ -170,6 +173,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp := o.(*endpoint)
 	dstEp.name = ep.name
 	dstEp.id = ep.id
+	dstEp.vip = ep.vip
 	dstEp.sandboxID = ep.sandboxID
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
@@ -211,6 +215,13 @@ func (ep *endpoint) Network() string {
 	}
 
 	return ep.network.name
+}
+
+func (ep *endpoint) VirtualIP() string {
+	ep.Lock()
+	defer ep.Unlock()
+
+	return ep.vip
 }
 
 func (ep *endpoint) isAnonymous() bool {
@@ -717,6 +728,46 @@ func CreateOptionAnonymous() EndpointOption {
 	}
 }
 
+// CreateOptionPublicIP function returns an option setter for setting
+// this endpoint's public ip address
+func CreateOptionPublicIP(ip string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic[netlabel.PublicIP] = ip
+	}
+}
+
+// CreateOptionNetworkName function returns an option setter for setting
+// this endpoint's central network name
+func CreateOptionNetworkName(networkName string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic[netlabel.NetworkName] = networkName
+	}
+}
+
+// CreateOptionVlanTag function returns an option setter for setting
+// this endpoint's vlan tag
+func CreateOptionVlanTag(vlantag uint) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic[netlabel.VlanTag] = vlantag
+	}
+}
+
+// CreateOptionContainerID function returns an option setter for setting
+// this endpoint's container id
+func CreateOptionContainerID(containerid string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.generic[netlabel.ContainerID] = containerid
+	}
+}
+
+// CreateOptionVirtualIP function returns an option setter for setting
+// this endpoint's virtual ip
+func CreateOptionVirtualIP(vip string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.vip = vip
+	}
+}
+
 // JoinOptionPriority function returns an option setter for priority option to
 // be passed to the endpoint.Join() method.
 func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
@@ -745,7 +796,7 @@ func (ep *endpoint) assignAddress(assignIPv4, assignIPv6 bool) error {
 	)
 
 	n := ep.getNetwork()
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "ovs" {
 		return nil
 	}
 
@@ -816,7 +867,7 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 func (ep *endpoint) releaseAddress() {
 	n := ep.getNetwork()
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "ovs" {
 		return
 	}
 

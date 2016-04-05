@@ -482,6 +482,12 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
+	if ep.vip != "" {
+		if err := sb.osSbox.BindVirtualIP(ep.vip); err != nil {
+			return fmt.Errorf("failed to bind virtual ip %s to lo: %v", ep.vip, err)
+		}
+	}
+
 	for _, gwep := range sb.getConnectedEndpoints() {
 		if len(gwep.Gateway()) > 0 {
 			if gwep != ep {

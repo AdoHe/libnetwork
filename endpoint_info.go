@@ -39,6 +39,12 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address assigned to the endpoint.
 	AddressIPv6() *net.IPNet
+
+	// VlanID returns the vlan tag assigned to the endpoint.
+	VlanID() uint
+
+	// NetworkName returns the network name this endpoint belongs to.
+	NetworkName() string
 }
 
 type endpointInterface struct {
@@ -50,6 +56,9 @@ type endpointInterface struct {
 	routes    []*net.IPNet
 	v4PoolID  string
 	v6PoolID  string
+
+	vlanID      uint
+	networkName string
 }
 
 func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
@@ -72,6 +81,8 @@ func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	epMap["routes"] = routes
 	epMap["v4PoolID"] = epi.v4PoolID
 	epMap["v6PoolID"] = epi.v6PoolID
+	epMap["vlanID"] = epi.vlanID
+	epMap["networkName"] = epi.networkName
 	return json.Marshal(epMap)
 }
 
@@ -116,6 +127,9 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 	epi.v4PoolID = epMap["v4PoolID"].(string)
 	epi.v6PoolID = epMap["v6PoolID"].(string)
 
+	epi.vlanID = epMap["vlanID"].(uint)
+	epi.networkName = epMap["networkName"].(string)
+
 	return nil
 }
 
@@ -127,6 +141,8 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.dstPrefix = epi.dstPrefix
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
+	dstEpi.vlanID = epi.vlanID
+	dstEpi.networkName = epi.networkName
 
 	for _, route := range epi.routes {
 		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
@@ -248,6 +264,24 @@ func (epi *endpointInterface) Address() *net.IPNet {
 
 func (epi *endpointInterface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(epi.addrv6)
+}
+
+func (epi *endpointInterface) VlanID() uint {
+	return epi.vlanID
+}
+
+func (epi *endpointInterface) NetworkName() string {
+	return epi.networkName
+}
+
+func (epi *endpointInterface) SetVlanID(vlanID uint) error {
+	epi.vlanID = vlanID
+	return nil
+}
+
+func (epi *endpointInterface) SetNetworkName(networkName string) error {
+	epi.networkName = networkName
+	return nil
 }
 
 func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {

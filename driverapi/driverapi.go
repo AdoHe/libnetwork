@@ -44,6 +44,9 @@ type Driver interface {
 
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
+
+	// Release IP if necessary
+	ReleaseIP(id, ip string) error
 }
 
 // InterfaceInfo provides a go interface for drivers to retrive
@@ -66,6 +69,14 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address.
 	AddressIPv6() *net.IPNet
+
+	// SetVlanID allows the driver to set the vlan id to the endpoint interface
+	// during the call to CreateEndpoint.
+	SetVlanID(vlanID uint) error
+
+	// SetNetworkName allows the driver to set the network name to the endpoint interface
+	// during the call to CreateEndpoint.
+	SetNetworkName(networkName string) error
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names

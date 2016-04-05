@@ -271,6 +271,10 @@ func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{})
 	return d.call("DiscoverDelete", notif, &api.DiscoveryResponse{})
 }
 
+func (d *driver) ReleaseIP(id, ip string) error {
+	return nil
+}
+
 func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
 	var routes = make([]*types.StaticRoute, len(r.StaticRoutes))
 	for i, inRoute := range r.StaticRoutes {
