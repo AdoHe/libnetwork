@@ -149,6 +149,14 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		}
 	}
 
+	if err := ifInfo.SetVlanID(inIface.VlanTag); err != nil {
+		return errorWithRollback(fmt.Sprintf("driver modified interface vlan id: %v", err), d.DeleteEndpoint(nid, eid))
+	}
+
+	if err := ifInfo.SetNetworkName(inIface.NetworkName); err != nil {
+		return errorWithRollback(fmt.Sprintf("driver modified interface network name: %v", err), d.DeleteEndpoint(nid, eid))
+	}
+
 	return nil
 }
 
@@ -272,7 +280,11 @@ func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{})
 }
 
 func (d *driver) ReleaseIP(id, ip string) error {
-	return nil
+	release := &api.ReleaseIPRequest{
+		ContainerID: id,
+		ContainerIP: ip,
+	}
+	return d.call("ReleaseIP", release, &api.ReleaseIPResponse{})
 }
 
 func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
@@ -322,6 +334,8 @@ func parseInterface(r api.CreateEndpointResponse) (*api.Interface, error) {
 				return nil, err
 			}
 		}
+		outIf.VlanTag = inIf.VlanTag
+		outIf.NetworkName = inIf.NetworkName
 	}
 
 	return outIf, nil

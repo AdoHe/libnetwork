@@ -701,6 +701,7 @@ func (c *controller) Stop() {
 	osl.GC()
 }
 
+// Replace this hard code ovs driver with network driver
 func (c *controller) ReleaseIPAddress(id, ip string) error {
 	dd, _ := c.drivers["ovs"]
 	return dd.driver.ReleaseIP(id, ip)

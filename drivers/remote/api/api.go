@@ -70,6 +70,8 @@ type EndpointInterface struct {
 	Address     string
 	AddressIPv6 string
 	MacAddress  string
+	VlanTag     uint
+	NetworkName string
 }
 
 // CreateEndpointResponse is the response to the CreateEndpoint action.
@@ -83,6 +85,8 @@ type Interface struct {
 	Address     *net.IPNet
 	AddressIPv6 *net.IPNet
 	MacAddress  net.HardwareAddr
+	VlanTag     uint   // vlan id of this interface
+	NetworkName string // central network name of this interface (temporary hack)
 }
 
 // DeleteEndpointRequest describes the API for deleting an endpoint.
@@ -159,5 +163,16 @@ type DiscoveryNotification struct {
 
 // DiscoveryResponse is used by libnetwork to log any plugin error processing the discovery notifications
 type DiscoveryResponse struct {
+	Response
+}
+
+// ReleaseIPRequest describes the API for releasing an IP resource
+type ReleaseIPRequest struct {
+	ContainerID string
+	ContainerIP string // IP should be CIDR notation
+}
+
+// ReleaseIPResponse is the answer to ReleaseIPRequest.
+type ReleaseIPResponse struct {
 	Response
 }
