@@ -94,7 +94,7 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 	ep.name = epMap["name"].(string)
 	ep.id = epMap["id"].(string)
-	ep.vip = apMap["vip"].(string)
+	ep.vip = epMap["vip"].(string)
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
 	json.Unmarshal(ib, &ep.iface)
